@@ -3,8 +3,8 @@
 
 from flask import Blueprint, render_template, request, jsonify, send_from_directory
 from examui import config
-from examui.models import oral
-from examui.models.history import all_students
+from examui.models import source
+from examui.models.store import all_students, LiveCurrentExamEvent
 
 bp = Blueprint('student', __name__, url_prefix='')
 
@@ -24,7 +24,7 @@ def student(email):
 @bp.post('/api/<email>/note')
 def save_note(email):
     s = all_students().get(email)
-    if not s or not s.current:
+    if not s or not isinstance(s.current, LiveCurrentExamEvent):
         return jsonify(ok=False, error='not enrolled'), 404
     s.current.short_note = request.form.get('short_note', '')
     s.current.long_note  = request.form.get('long_note', '')
@@ -34,7 +34,7 @@ def save_note(email):
 @bp.post('/api/<email>/mark')
 def save_mark(email):
     s = all_students().get(email)
-    if not s or not s.current:
+    if not s or not isinstance(s.current, LiveCurrentExamEvent):
         return jsonify(ok=False, error='not enrolled'), 404
     s.current.mark = request.form['mark']
     return jsonify(ok=True)
@@ -43,7 +43,7 @@ def save_mark(email):
 @bp.get('/api/<email>/javadoc/')
 @bp.get('/api/<email>/javadoc/<path:filepath>')
 def javadoc(email, filepath='index.html'):
-    root = oral.javadoc_root(email)
+    root = source.javadoc_root(email)
     if not root.exists():
         return 'Javadoc not found', 404
     return send_from_directory(root, filepath)
@@ -51,23 +51,23 @@ def javadoc(email, filepath='index.html'):
 
 @bp.get('/api/<email>/source/tree')
 def source_tree(email):
-    return jsonify(oral.source_tree(email))
+    return jsonify(source.tree(email))
 
 
 @bp.get('/api/<email>/source/deps')
 def source_deps(email):
-    return jsonify(oral.source_deps(email))
+    return jsonify(source.deps(email))
 
 
 @bp.get('/api/<email>/source/symbols')
 def source_symbols(email):
-    return jsonify(oral.source_all_symbols(email))
+    return jsonify(source.all_symbols(email))
 
 
 @bp.get('/api/<email>/source/file')
 def source_file(email):
     relpath = request.args.get('path', '')
-    data = oral.source_file(email, relpath)
+    data = source.file(email, relpath)
     if data is None:
         return 'Not found', 404
     return jsonify(data)

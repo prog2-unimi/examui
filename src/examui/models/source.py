@@ -28,15 +28,15 @@ def javadoc_root(email: str) -> Path:
 
 # ── source ────────────────────────────────────────────────────────────────────
 
-def source_root(email: str) -> Path:
+def _root(email: str) -> Path:
     base = config.STUDENT_BASE / email / 'source'
     java = base / 'src' / 'main' / 'java'
     return java if java.exists() else base
 
 
 @cache
-def source_tree(email: str) -> list:
-    root = source_root(email)
+def tree(email: str) -> list:
+    root = _root(email)
     if not root.exists():
         return []
     trivial_paths = _trivial_rel_paths(root)
@@ -44,8 +44,8 @@ def source_tree(email: str) -> list:
 
 
 @cache
-def source_all_symbols(email: str) -> list[dict]:
-    root = source_root(email)
+def all_symbols(email: str) -> list[dict]:
+    root = _root(email)
     if not root.exists():
         return []
     trivial_paths = _trivial_rel_paths(root)
@@ -193,8 +193,8 @@ def _javadoc_ids(email: str, relpath: str) -> frozenset[str]:
 
 
 @cache
-def source_file(email: str, relpath: str) -> dict | None:
-    root = source_root(email).resolve()
+def file(email: str, relpath: str) -> dict | None:
+    root = _root(email).resolve()
     path = (root / relpath).resolve()
     if not str(path).startswith(str(root)) or not path.exists() or path.suffix != '.java':
         return None
@@ -294,8 +294,8 @@ def _tarjan_sccs(nodes: list[str], adj: dict[str, list[str]]) -> list[list[str]]
 
 
 @cache
-def source_deps(email: str) -> dict:
-    root = source_root(email)
+def deps(email: str) -> dict:
+    root = _root(email)
     if not root.exists():
         return {'svg': '', 'paths': {}}
 
@@ -408,11 +408,11 @@ def source_deps(email: str) -> dict:
 def warmup(email: str) -> None:
     """Populate all caches for one student. Call at startup before workers fork."""
     _log.info('[warmup] %s: tree', email)
-    source_tree(email)
+    tree(email)
     _log.info('[warmup] %s: symbols', email)
-    source_all_symbols(email)
+    all_symbols(email)
     _log.info('[warmup] %s: deps', email)
-    source_deps(email)
+    deps(email)
     _log.info('[warmup] %s: done', email)
 
 

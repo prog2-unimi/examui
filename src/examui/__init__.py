@@ -34,14 +34,14 @@ def create_app():
         return redirect(url_for('history.list_students'))
 
     from pathlib import Path
-    from examui.models.history import all_students, LiveCurrentExamEvent
-    from examui.models import oral
-    Path(app.static_folder, 'pygments.css').write_text(oral.pygments_css())
+    from examui.models.store import all_students, LiveCurrentExamEvent
+    from examui.models import source
+    Path(app.static_folder, 'pygments.css').write_text(source.pygments_css())
     students    = all_students()
     with_source = sorted(e for e, s in students.items() if isinstance(s.current, LiveCurrentExamEvent))
     _log.info('[warmup] %d students with source', len(with_source))
     for email in with_source:
-        oral.warmup(email)
+        source.warmup(email)
     _log.info('[warmup] complete')
 
     return app

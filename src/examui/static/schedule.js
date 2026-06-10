@@ -9,15 +9,22 @@ function renderMark(vm, cm) {
 
 function fmtSlot(slot) {
   if (!slot) return '';
-  // YYMMDD-HHMM → DD/MM/YY HH:MM
-  const d = slot.slice(0, 6);
-  const t = slot.slice(7);
-  return `${d.slice(4)}-${d.slice(2, 4)}-${d.slice(0, 2)} ${t.slice(0, 2)}:${t.slice(2)}`;
+  const d = new Date(slot);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm} ${hh}:${mi}`;
 }
 
-function mkBadge(val, okVal) {
-  const ok = val === okVal;
-  return `<span class="badge ${ok ? 'bg-success' : 'bg-danger'}">${val}</span>`;
+function iconFail(val) {
+  return val
+    ? '<i class="bi bi-x-circle-fill text-danger"></i>'
+    : '<i class="bi bi-check-circle-fill text-success"></i>';
+}
+
+function iconCycles(val) {
+  return val ? '<i class="bi bi-exclamation-triangle-fill text-danger"></i>' : '';
 }
 
 const table = new DataTable('#schedule-table', {
@@ -36,19 +43,20 @@ const table = new DataTable('#schedule-table', {
       render: (d, _, row) => `<a href="/student/${row.email}">${d}</a>` },
     { data: null, orderable: false,
       render: (_, __, row) => renderMark(row.verbali_mark, row.current_mark) },
-    { data: 'tests',   render: (d) => mkBadge(d, 'SUCCESS') },
-    { data: 'javadoc', render: (d) => mkBadge(d, 'SUCCESS') },
-    { data: 'cyclic',  render: (d) => mkBadge(d, 'NO') },
-    { data: 'code',    className: 'text-end' },
-    { data: 'docs',    className: 'text-end' },
-    { data: 'file',    className: 'text-end' },
-    { data: 'num',     className: 'text-end' },
+    { data: 'tests_fail',   className: 'text-center', render: iconFail },
+    { data: 'javadoc_fail', className: 'text-center', render: iconFail },
+    { data: 'has_cycles',   className: 'text-center', render: iconCycles },
+    { data: 'main_sloc',    className: 'text-end' },
+    { data: 'main_docs',    className: 'text-end' },
+    { data: 'main_files',   className: 'text-end' },
+    { data: 'client_sloc',  className: 'text-end' },
+    { data: 'client_files', className: 'text-end' },
   ],
 });
 
 DataTable.ext.search.push((_settings, _data, _idx, row) => {
   if (!document.getElementById('today-filter').checked) return true;
-  return row.slot.startsWith(CFG.today);
+  return row.slot && row.slot.startsWith(CFG.today);
 });
 
 table.draw();

@@ -1,87 +1,22 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026  Massimo Santini
 
-from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
 
 import pandas as pd
 
 from examui import config
-
-
-@dataclass(frozen=True)
-class ExamEvent:
-    date: str
-    mark: str        # 'AS' | 'RI?' | 'RE?' | '19V' | '19R' | ...
-    note: str | None
-
-
-@dataclass(frozen=True)
-class Metrics:
-    tests:   str   # 'SUCCESS' | 'FAILURE'
-    javadoc: str   # 'SUCCESS' | 'FAILURE'
-    cyclic:  str   # 'YES' | 'NO'
-    code:    int
-    docs:    int
-    file:    int
-    ccode:   int
-    cfile:   int
-    slot:    str   # 'YYMMDD-HHMM' or '' (the `date` column — booked oral slot)
-    upload:  str   # 'YYMMDD-HHMM' or ''
-    num:     int
-
-
-class AbsentCurrentExamEvent:
-    """Enrolled in current exam but no source turned in — immutable."""
-
-    def __init__(self, date: str) -> None:
-        self.date = date
-
-    @property
-    def mark(self) -> str:
-        return 'AS'
-
-    @mark.setter
-    def mark(self, value: str) -> None:
-        raise AttributeError('No source turned in')
-
-    @property
-    def short_note(self) -> str:
-        return ''
-
-    @short_note.setter
-    def short_note(self, value: str) -> None:
-        raise AttributeError('No source turned in')
-
-    @property
-    def long_note(self) -> str:
-        return ''
-
-    @long_note.setter
-    def long_note(self, text: str) -> None:
-        raise AttributeError('No source turned in')
+from examui.models.events import AbsentCurrentExamEvent, ExamEvent, Metrics, Student
 
 
 class LiveCurrentExamEvent:
     """Enrolled in current exam with source turned in — reads/writes live."""
 
     def __init__(self, email: str, date: str, row: dict) -> None:
-        self._email = email
-        self.date   = date
-        self.metrics = Metrics(
-            tests=str(row.get('tests', '')),
-            javadoc=str(row.get('javadoc', '')),
-            cyclic=str(row.get('cyclic', '')),
-            code=int(row.get('code', 0) or 0),
-            docs=int(row.get('docs', 0) or 0),
-            file=int(row.get('file', 0) or 0),
-            ccode=int(row.get('ccode', 0) or 0),
-            cfile=int(row.get('cfile', 0) or 0),
-            slot=str(row.get('date', '')),
-            upload=str(row.get('upload', '')),
-            num=int(row.get('num', 0) or 0),
-        )
+        self._email  = email
+        self.date    = date
+        self.metrics = Metrics.from_row(row)
 
     @property
     def mark(self) -> str:
@@ -127,35 +62,6 @@ class LiveCurrentExamEvent:
             p.write_text(cleaned)
         elif p.exists():
             p.unlink()
-
-
-@dataclass(frozen=True)
-class Student:
-    email:     str
-    matricola: str
-    name:      str
-    events:    list[ExamEvent] = field(default_factory=list)
-    current:   AbsentCurrentExamEvent | LiveCurrentExamEvent | None = None
-
-    @property
-    def verbali_mark(self) -> dict | None:
-        passing = next((e for e in self.events if e.mark[-1:] == 'V'), None)
-        if passing:
-            return {'value': passing.mark[:-1], 'kind': 'pass'}
-        tilde = next(
-            (e for e in self.events
-             if e.mark[-1:] == 'R' and e.mark[:2] not in ('RI', 'RE')),
-            None,
-        )
-        if tilde:
-            return {'value': tilde.mark[:-1] + '~', 'kind': 'tilde'}
-        last = next(
-            (e for e in self.events if e.mark[:2] in ('RE', 'RI')),
-            None,
-        )
-        if last:
-            return {'value': last.mark[:2], 'kind': last.mark[:2]}
-        return None
 
 
 @cache

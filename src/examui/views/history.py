@@ -1,10 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026  Massimo Santini
 
-import json
-
 from flask import Blueprint, render_template
-from examui.models.history import all_students
+from examui.models.store import all_students
 
 bp = Blueprint('history', __name__, url_prefix='')
 
@@ -40,5 +38,5 @@ def list_students():
         })
 
     return render_template('history.html',
-                           students_json=json.dumps(summary),
+                           students=summary,
                            exam_dates=sorted(all_dates, reverse=True))

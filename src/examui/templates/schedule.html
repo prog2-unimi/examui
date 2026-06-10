@@ -36,10 +36,11 @@
         <th>Tests</th>
         <th>Javadoc</th>
         <th>Cyclic</th>
-        <th class="text-end">Code</th>
+        <th class="text-end">SLOC</th>
         <th class="text-end">Docs</th>
         <th class="text-end">Files</th>
-        <th class="text-end">Past</th>
+        <th class="text-end">Client SLOC</th>
+        <th class="text-end">Client files</th>
       </tr>
     </thead>
   </table>
@@ -53,7 +54,7 @@
 <script src="https://cdn.datatables.net/2.0.8/js/dataTables.bootstrap5.min.js"></script>
 <script>
 const CFG = {
-  rows:  {{ rows_json | safe }},
+  rows:  {{ rows | tojson }},
   today: {{ today | tojson }},
 };
 </script>

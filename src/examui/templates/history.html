@@ -60,7 +60,7 @@
 <script src="https://cdn.datatables.net/2.0.8/js/dataTables.bootstrap5.min.js"></script>
 <script>
 const CFG = {
-  students: {{ students_json | safe }},
+  students: {{ students | tojson }},
 };
 </script>
 <script src="{{ url_for('static', filename='history.js') }}"></script>
