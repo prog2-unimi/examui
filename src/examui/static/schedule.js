@@ -27,6 +27,8 @@ function iconCycles(val) {
   return val ? '<i class="bi bi-exclamation-triangle-fill text-danger"></i>' : '';
 }
 
+const _activeEmail = (JSON.parse(sessionStorage.getItem('examTimer') || 'null') || {}).email || null;
+
 const table = new DataTable('#schedule-table', {
   data: CFG.rows,
   pageLength: 50,
@@ -37,6 +39,7 @@ const table = new DataTable('#schedule-table', {
     bottomStart: 'info',
     bottomEnd: 'paging',
   },
+  createdRow: (row, data) => { if (data.email === _activeEmail) row.classList.add('table-warning'); },
   columns: [
     { data: 'slot',    render: fmtSlot },
     { data: 'name',
@@ -72,3 +75,11 @@ document.getElementById('page-len').addEventListener('change', function() {
 });
 
 window.addEventListener('pageshow', e => { if (e.persisted) table.draw(); });
+
+if (_activeEmail) {
+  const btn = document.getElementById('active-btn');
+  const s   = CFG.rows.find(r => r.email === _activeEmail);
+  btn.href      = `/student/${_activeEmail}`;
+  btn.innerHTML = `<i class="bi bi-stopwatch"></i> ${s ? s.name : _activeEmail}`;
+  btn.classList.remove('d-none');
+}

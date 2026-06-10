@@ -6,6 +6,8 @@ function renderMark(vm) {
   return `<span class="badge ${KIND_CLS[vm.kind] ?? 'bg-secondary'}">${vm.value}</span>`;
 }
 
+const _activeEmail = (JSON.parse(sessionStorage.getItem('examTimer') || 'null') || {}).email || null;
+
 const table = new DataTable('#students-table', {
   data: CFG.students,
   pageLength: 50,
@@ -16,6 +18,7 @@ const table = new DataTable('#students-table', {
     bottomStart: 'info',
     bottomEnd: 'paging',
   },
+  createdRow: (row, data) => { if (data.email === _activeEmail) row.classList.add('table-warning'); },
   columns: [
     { data: 'name' },
     { data: 'email',
@@ -82,3 +85,11 @@ document.getElementById('page-len').addEventListener('change', function() {
 
 // Re-apply filters on bfcache restore
 window.addEventListener('pageshow', e => { if (e.persisted) table.draw(); });
+
+if (_activeEmail) {
+  const btn = document.getElementById('active-btn');
+  const s   = CFG.students.find(s => s.email === _activeEmail);
+  btn.href      = `/student/${_activeEmail}`;
+  btn.innerHTML = `<i class="bi bi-stopwatch"></i> ${s ? s.name : _activeEmail}`;
+  btn.classList.remove('d-none');
+}
