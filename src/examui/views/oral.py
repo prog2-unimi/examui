@@ -30,6 +30,15 @@ def save_note(email):
     return jsonify(ok=True)
 
 
+@bp.post('/api/<email>/mark')
+def save_mark(email):
+    s = all_students().get(email)
+    if not s or not s.current:
+        return jsonify(ok=False, error='not enrolled'), 404
+    s.current.mark = request.form['mark']
+    return jsonify(ok=True)
+
+
 @bp.get('/api/<email>/javadoc/')
 @bp.get('/api/<email>/javadoc/<path:filepath>')
 def javadoc(email, filepath='index.html'):

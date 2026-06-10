@@ -99,14 +99,14 @@ class Student:
         if passing:
             return {'value': passing.mark[:-1], 'kind': 'pass'}
         tilde = next(
-            (e for e in reversed(self.events)
+            (e for e in self.events
              if e.mark[-1:] == 'R' and e.mark[:2] not in ('RI', 'RE')),
             None,
         )
         if tilde:
             return {'value': tilde.mark[:-1] + '~', 'kind': 'tilde'}
         last = next(
-            (e for e in reversed(self.events) if e.mark[:2] in ('RE', 'RI')),
+            (e for e in self.events if e.mark[:2] in ('RE', 'RI')),
             None,
         )
         if last:

@@ -91,5 +91,17 @@ document.getElementById('page-len').addEventListener('change', function() {
   saveFilters();
 });
 
-// Re-apply filters on bfcache restore (browser back/forward without full reload)
-window.addEventListener('pageshow', e => { if (e.persisted) table.draw(); });
+// ── Current student button ────────────────────────────────────────────────────
+function updateCurrentStudentBtn() {
+  const stored = JSON.parse(sessionStorage.getItem('examTimer') || 'null');
+  const btn    = document.getElementById('current-student-btn');
+  if (!stored?.email) { btn.classList.add('d-none'); return; }
+  const student = CFG.students.find(s => s.email === stored.email);
+  document.getElementById('current-student-name').textContent = student?.name ?? stored.email;
+  btn.href = '/' + stored.email;
+  btn.classList.remove('d-none');
+}
+updateCurrentStudentBtn();
+
+// Re-apply filters and refresh current-student button on bfcache restore
+window.addEventListener('pageshow', e => { if (e.persisted) { table.draw(); updateCurrentStudentBtn(); } });

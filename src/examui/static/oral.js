@@ -116,6 +116,25 @@ textarea.addEventListener('input', () => {
 });
 textarea.addEventListener('blur', () => { clearTimeout(saveTimer); saveNote(); });
 
+// ── Mark save ────────────────────────────────────────────────────────────────
+const markInput  = document.getElementById('mark-input');
+const markStatus = document.getElementById('mark-status');
+
+if (markInput) {
+  function saveMark() {
+    const fd = new FormData();
+    fd.append('mark', markInput.value.trim());
+    fetch(CFG.urls.saveMark, { method: 'POST', body: fd })
+      .then(r => {
+        markStatus.textContent = r.ok ? '✓' : '✗';
+        markStatus.style.color = r.ok ? 'var(--bs-success)' : 'var(--bs-danger)';
+        if (r.ok) setTimeout(() => { markStatus.textContent = ''; }, 1500);
+      });
+  }
+  markInput.addEventListener('blur', saveMark);
+  markInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); markInput.blur(); } });
+}
+
 // ── Source navigator ─────────────────────────────────────────────────────────
 const SYM_SEARCH_MIN_LEN = 3;   // minimum query length to trigger global search
 let allSymbols  = [];            // [{file, kind, name, line, anchor}, …]

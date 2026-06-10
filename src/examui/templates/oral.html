@@ -127,8 +127,14 @@
     </div>
 
     {# ── Note ──────────────────────────────────────────────────────────────── #}
-    <div class="tab-pane fade {% if current and cm != none and cm != 'AS' %}show active{% endif %} h-100 p-2" id="tab-note">
-      <textarea id="note-editor" class="form-control h-100"
+    <div class="tab-pane fade {% if current and cm != none and cm != 'AS' %}show active{% endif %} h-100 p-2 d-flex flex-column gap-2" id="tab-note">
+      <div class="d-flex align-items-center gap-2 flex-shrink-0">
+        <label class="form-label mb-0 small text-muted flex-shrink-0" for="mark-input">Mark</label>
+        <input id="mark-input" type="text" value="{{ cm if cm and cm != 'AS' else '' }}"
+               class="form-control form-control-sm" style="width:6rem;">
+        <span id="mark-status" class="small"></span>
+      </div>
+      <textarea id="note-editor" class="form-control flex-grow-1"
                 style="resize: none; font-family: monospace; font-size: .9rem;">{{ current.note if cm != none and cm != 'AS' else '' }}</textarea>
     </div>
 
@@ -202,6 +208,7 @@ const CFG = {
   slotMinutes: {{ slot_minutes }},
   urls: {
     saveNote:      {{ url_for('oral.save_note',      email=email) | tojson }},
+    saveMark:      {{ url_for('oral.save_mark',      email=email) | tojson }},
     sourceTree:    {{ url_for('oral.source_tree',    email=email) | tojson }},
     sourceFile:    {{ url_for('oral.source_file',    email=email) | tojson }},
     sourceDeps:    {{ url_for('oral.source_deps',    email=email) | tojson }},

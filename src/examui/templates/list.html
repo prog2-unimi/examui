@@ -11,6 +11,9 @@
 
   <div class="d-flex align-items-center gap-2 mb-2">
     <h5 class="mb-0 flex-shrink-0"><i class="bi bi-people"></i> Students</h5>
+    <a id="current-student-btn" class="btn btn-sm btn-outline-primary flex-shrink-0 d-none" href="#">
+      <i class="bi bi-person-circle"></i> <span id="current-student-name"></span>
+    </a>
     <select id="date-filter" class="form-select form-select-sm w-auto flex-shrink-0">
       <option value="">All exam dates</option>
       {% for date in exam_dates %}
