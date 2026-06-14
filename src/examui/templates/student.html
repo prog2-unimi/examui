@@ -82,19 +82,11 @@
             <span class="text-muted font-monospace small">
               20{{ ev.date[:2] }}-{{ ev.date[2:4] }}-{{ ev.date[4:] }}
             </span>
-            {% if ev.mark == 'AS' %}
-              <span class="badge bg-secondary">Assente</span>
-            {% elif ev.mark[:2] == 'RI' %}
-              <span class="badge bg-warning text-dark">Ritirato</span>
-            {% elif ev.mark[:2] == 'RE' %}
-              <span class="badge bg-danger">Respinto</span>
-            {% elif ev.mark[-1] == 'R' %}
-              <span class="badge bg-primary">{{ ev.mark[:2] }} ~</span>
-            {% elif ev.mark[-1] == 'V' %}
-              <span class="badge bg-success">{{ ev.mark[:2] }}</span>
-            {% else %}
-              <span class="badge bg-secondary">{{ ev.mark }}</span>
-            {% endif %}
+            {% set MARK_CSS = {'assente': 'bg-secondary', 'respinto': 'bg-danger', 'ritirato': 'bg-orange', 'passato': 'bg-success', 'rifiutato': 'bg-primary'} %}
+            {% set MARK_LABEL = {'assente': 'Assente', 'respinto': 'Respinto', 'ritirato': 'Ritirato'} %}
+            <span class="badge {{ MARK_CSS[ev.mark.kind] }}">
+              {{- MARK_LABEL[ev.mark.kind] if ev.mark.kind in MARK_LABEL else ev.mark.value -}}
+            </span>
           </div>
           {% if ev.note %}
           <pre class="mt-2 mb-0 ps-2 border-start border-2 small text-body-secondary"

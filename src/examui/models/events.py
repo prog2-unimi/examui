@@ -5,16 +5,36 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from examui.models.store import LiveCurrentExamEvent
 
 
 @dataclass(frozen=True)
+class Mark:
+    kind:  Literal['assente', 'respinto', 'ritirato', 'passato', 'rifiutato']
+    value: int | None = None
+
+    @classmethod
+    def from_verbale(cls, voto: str, stato: str) -> Mark:
+        voto2  = str(voto)[:2].upper()
+        stato1 = str(stato)[:1].upper()
+        if voto2 == 'RE':
+            return cls(kind='respinto')
+        if voto2 == 'RI':
+            return cls(kind='ritirato')
+        try:
+            num = int(voto2)
+        except ValueError:
+            return cls(kind='assente')
+        return cls(kind='passato' if stato1 == 'V' else 'rifiutato', value=num)
+
+
+@dataclass(frozen=True)
 class ExamEvent:
     date: str
-    mark: str        # 'AS' | 'RI?' | 'RE?' | '19V' | '19R' | ...
+    mark: Mark
     note: str | None
 
 
@@ -96,21 +116,14 @@ class Student:
     current:   AbsentCurrentExamEvent | LiveCurrentExamEvent | None = None
 
     @property
-    def verbali_mark(self) -> dict | None:
-        passing = next((e for e in self.events if e.mark[-1:] == 'V'), None)
+    def summary_mark(self) -> Mark | None:
+        passing = next((e for e in self.events if e.mark.kind == 'passato'), None)
         if passing:
-            return {'value': passing.mark[:-1], 'kind': 'pass'}
-        tilde = next(
-            (e for e in self.events
-             if e.mark[-1:] == 'R' and e.mark[:2] not in ('RI', 'RE')),
-            None,
-        )
-        if tilde:
-            return {'value': tilde.mark[:-1] + '~', 'kind': 'tilde'}
-        last = next(
-            (e for e in self.events if e.mark[:2] in ('RE', 'RI')),
-            None,
-        )
+            return passing.mark
+        rifiutato = next((e for e in self.events if e.mark.kind == 'rifiutato'), None)
+        if rifiutato:
+            return rifiutato.mark
+        last = next((e for e in self.events if e.mark.kind in ('respinto', 'ritirato')), None)
         if last:
-            return {'value': last.mark[:2], 'kind': last.mark[:2]}
+            return last.mark
         return None

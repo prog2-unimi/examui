@@ -21,6 +21,10 @@
       <input class="form-check-input" type="checkbox" id="today-filter">
       <label class="form-check-label" for="today-filter">Today only</label>
     </div>
+    <div class="form-check mb-0 flex-shrink-0">
+      <input class="form-check-input" type="checkbox" id="new-filter">
+      <label class="form-check-label" for="new-filter">New only</label>
+    </div>
     <select id="page-len" class="form-select form-select-sm w-auto flex-shrink-0">
       <option value="25">25</option>
       <option value="50" selected>50</option>
@@ -61,5 +65,6 @@ const CFG = {
   today: {{ today | tojson }},
 };
 </script>
+<script src="{{ url_for('static', filename='common.js') }}"></script>
 <script src="{{ url_for('static', filename='schedule.js') }}"></script>
 {% endblock %}

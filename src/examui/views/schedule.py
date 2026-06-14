@@ -20,11 +20,12 @@ def schedule():
         (s for s in students.values() if isinstance(s.current, LiveCurrentExamEvent)),
         key=lambda s: (s.current.metrics.slot or datetime.max, s.name),
     ):
+        sm = s.summary_mark
         rows.append({
             'email':        s.email,
             'name':         s.name,
             'matricola':    s.matricola,
-            'verbali_mark': s.verbali_mark,
+            'summary_mark': dataclasses.asdict(sm) if sm else None,
             'current_mark': s.current.mark,
             **dataclasses.asdict(s.current.metrics),
         })

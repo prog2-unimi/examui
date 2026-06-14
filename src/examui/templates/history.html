@@ -25,10 +25,13 @@
       </option>
       {% endfor %}
     </select>
-    <div class="form-check mb-0 flex-shrink-0">
-      <input class="form-check-input" type="checkbox" id="refused-filter">
-      <label class="form-check-label" for="refused-filter">Has ~</label>
-    </div>
+    <select id="kind-filter" class="form-select form-select-sm w-auto flex-shrink-0">
+      <option value="">All kinds</option>
+      <option value="passato">Passato</option>
+      <option value="rifiutato">Rifiutato</option>
+      <option value="ritirato">Ritirato</option>
+      <option value="respinto">Respinto</option>
+    </select>
     <select id="page-len" class="form-select form-select-sm w-auto flex-shrink-0">
       <option value="25">25</option>
       <option value="50" selected>50</option>
@@ -66,5 +69,6 @@ const CFG = {
   students: {{ students | tojson }},
 };
 </script>
+<script src="{{ url_for('static', filename='common.js') }}"></script>
 <script src="{{ url_for('static', filename='history.js') }}"></script>
 {% endblock %}

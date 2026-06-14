@@ -1,11 +1,3 @@
-function renderMark(vm, cm) {
-  const KIND_CLS = { pass: 'bg-success', tilde: 'bg-primary', RE: 'bg-danger', RI: 'bg-warning text-dark' };
-  let html = '';
-  if (vm) html += `<span class="badge ${KIND_CLS[vm.kind] ?? 'bg-secondary'}">${vm.value}</span> `;
-  if (cm === '??') html += `<span class="badge bg-secondary">??</span>`;
-  else if (cm && cm !== 'AS') html += `<span class="badge bg-warning text-dark">${cm}</span>`;
-  return html;
-}
 
 function fmtSlot(slot) {
   if (!slot) return '';
@@ -45,7 +37,7 @@ const table = new DataTable('#schedule-table', {
     { data: 'name',
       render: (d, _, row) => `<a href="/student/${row.email}">${d}</a>` },
     { data: null, orderable: false,
-      render: (_, __, row) => renderMark(row.verbali_mark, row.current_mark) },
+      render: (_, __, row) => renderMark(row.summary_mark, row.current_mark) },
     { data: 'tests_fail',   className: 'text-center', render: iconFail },
     { data: 'javadoc_fail', className: 'text-center', render: iconFail },
     { data: 'has_cycles',   className: 'text-center', render: iconCycles },
@@ -58,13 +50,15 @@ const table = new DataTable('#schedule-table', {
 });
 
 DataTable.ext.search.push((_settings, _data, _idx, row) => {
-  if (!document.getElementById('today-filter').checked) return true;
-  return row.slot && row.slot.startsWith(CFG.today);
+  if (document.getElementById('today-filter').checked && !(row.slot && row.slot.startsWith(CFG.today))) return false;
+  if (document.getElementById('new-filter').checked && row.summary_mark !== null) return false;
+  return true;
 });
 
 table.draw();
 
 document.getElementById('today-filter').addEventListener('change', () => table.draw());
+document.getElementById('new-filter').addEventListener('change', () => table.draw());
 
 document.getElementById('dt-search').addEventListener('input', function() {
   table.search(this.value).draw();

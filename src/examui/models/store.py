@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from examui import config
-from examui.models.events import AbsentCurrentExamEvent, ExamEvent, Metrics, Student
+from examui.models.events import AbsentCurrentExamEvent, ExamEvent, Mark, Metrics, Student
 
 
 class LiveCurrentExamEvent:
@@ -59,7 +59,7 @@ class LiveCurrentExamEvent:
             p.unlink()
 
     @property
-    def mark(self) -> str:        return self._read_tsv('mark', default='??')
+    def mark(self) -> str:        return self._read_tsv('mark')
     @mark.setter
     def mark(self, value: str):   self._write_tsv(mark=value)
 
@@ -118,7 +118,7 @@ def all_students() -> dict[str, Student]:
             email = mat2email.get(mat)
             if not email:
                 continue
-            mark = str(row['Voto'])[:2].upper() + str(row['Stato Esito'])[:1]
+            mark = Mark.from_verbale(str(row['Voto']), str(row['Stato Esito']))
             results.setdefault(email, {})[row['Data appello'].strftime('%y%m%d')] = mark
             if email not in names:
                 names[email] = str(row['Nominativo studente']).strip()
@@ -152,7 +152,7 @@ def all_students() -> dict[str, Student]:
         events = [
             ExamEvent(
                 date=date,
-                mark=results.get(email, {}).get(date, 'AS'),
+                mark=results.get(email, {}).get(date, Mark(kind='assente')),
                 note=notes.get(email, {}).get(date),
             )
             for date in sorted(past_dates, reverse=True)
