@@ -104,7 +104,7 @@ function saveNote() {
   if (longNoteEditor.value === savedLongNote && shortNoteInput.value === savedShortNote) return;
   const fd = new FormData();
   fd.append('long_note',  longNoteEditor.value);
-  fd.append('short_note', shortNoteInput ? shortNoteInput.value : '');
+  fd.append('annotation', shortNoteInput ? shortNoteInput.value : '');
   fetch(CFG.urls.saveNote, { method: 'POST', body: fd })
     .then(() => {
       savedLongNote  = longNoteEditor.value;

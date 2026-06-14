@@ -56,8 +56,9 @@ DataTable.ext.search.push((_settings, _data, _idx, row) => {
   const date = document.getElementById('date-filter').value;
   if (date && !row.dates.includes(date)) return false;
   const kind = document.getElementById('kind-filter').value;
-  if (kind === 'nuovo') { if (!(row.in_current && !row.summary_mark)) return false; }
-  else if (kind && row.summary_mark?.kind !== kind) return false;
+  if (kind === 'nuovo')        { if (!(row.in_current && !row.summary_mark)) return false; }
+  else if (kind === 'assente') { if (row.summary_mark !== null) return false; }
+  else if (kind)               { if (row.summary_mark?.kind !== kind) return false; }
   return true;
 });
 

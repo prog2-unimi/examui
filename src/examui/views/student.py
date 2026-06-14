@@ -4,40 +4,48 @@
 from flask import Blueprint, render_template, request, jsonify, send_from_directory
 from examui import config
 from examui.models import source
-from examui.models.store import all_students, LiveCurrentExamEvent
+from examui.models.events import ExamEvent
+from examui.models.store import all_students, UnderEvaluationEvent
 
 bp = Blueprint('student', __name__, url_prefix='')
 
 
+def _live(email: str) -> UnderEvaluationEvent | None:
+    s = all_students().get(email)
+    if s and s.events and isinstance(s.events[0], UnderEvaluationEvent):
+        return s.events[0]
+    return None
+
+
 @bp.get('/student/<email>')
 def student(email):
-    s = all_students().get(email)
+    s    = all_students().get(email)
+    live = _live(email)
     return render_template('student.html',
                            email=email,
                            name=s.name if s else '',
                            matricola=s.matricola if s else '',
-                           events=s.events if s else [],
-                           current=s.current if s else None,
-                           has_source=isinstance(s.current, LiveCurrentExamEvent) if s else False,
+                           events=[e for e in (s.events if s else []) if isinstance(e, ExamEvent)],
+                           current=live,
                            slot_minutes=config.SLOT_MINUTES)
 
 
 @bp.post('/api/<email>/note')
 def save_note(email):
-    s = all_students().get(email)
-    if not s or not isinstance(s.current, LiveCurrentExamEvent):
+    live = _live(email)
+    if not live:
         return jsonify(ok=False, error='not enrolled'), 404
-    s.current.short_note = request.form.get('short_note', '')
-    s.current.long_note  = request.form.get('long_note', '')
+    live.annotation  = request.form.get('annotation', '')
+    live.mark.note   = request.form.get('long_note', '')
     return jsonify(ok=True)
 
 
 @bp.post('/api/<email>/mark')
 def save_mark(email):
-    s = all_students().get(email)
-    if not s or not isinstance(s.current, LiveCurrentExamEvent):
+    live = _live(email)
+    if not live:
         return jsonify(ok=False, error='not enrolled'), 404
-    s.current.mark = request.form['mark']
+    live.mark.provisional = request.form['mark']
     return jsonify(ok=True)
 
 

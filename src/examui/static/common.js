@@ -3,11 +3,9 @@ const MARK_CSS = {
   rifiutato: 'bg-primary',
   respinto:  'bg-danger',
   ritirato:  'bg-orange',
-  assente:   'bg-secondary',
 };
 
 const MARK_LABEL = {
-  assente:  'AS',
   respinto: 'RE',
   ritirato: 'RI',
 };

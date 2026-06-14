@@ -1,16 +1,32 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026  Massimo Santini
 
+import dataclasses
 from functools import cache
 from pathlib import Path
 
 import pandas as pd
 
 from examui import config
-from examui.models.events import AbsentCurrentExamEvent, ExamEvent, Mark, Metrics, Student
+from examui.models.events import ExamEvent, Mark, Metrics, Student
 
 
-class LiveCurrentExamEvent:
+class UnderEvaluationMark:
+    def __init__(self, event: 'UnderEvaluationEvent') -> None:
+        self._event = event
+
+    @property
+    def provisional(self) -> str:       return self._event._read_tsv('mark')
+    @provisional.setter
+    def provisional(self, value: str):  self._event._write_tsv(mark=value)
+
+    @property
+    def note(self) -> str:              return self._event._read_md()
+    @note.setter
+    def note(self, text: str):          self._event._write_md(text)
+
+
+class UnderEvaluationEvent:
     """Enrolled in current exam with source turned in — reads/writes live."""
 
     def __init__(self, email: str, date: str, row: dict) -> None:
@@ -59,19 +75,13 @@ class LiveCurrentExamEvent:
             p.unlink()
 
     @property
-    def mark(self) -> str:        return self._read_tsv('mark')
-    @mark.setter
-    def mark(self, value: str):   self._write_tsv(mark=value)
+    def mark(self) -> UnderEvaluationMark:
+        return UnderEvaluationMark(self)
 
     @property
-    def short_note(self) -> str:       return self._read_tsv('note')
-    @short_note.setter
-    def short_note(self, value: str):  self._write_tsv(note=value)
-
-    @property
-    def long_note(self) -> str:        return self._read_md()
-    @long_note.setter
-    def long_note(self, text: str):    self._write_md(text)
+    def annotation(self) -> str:       return self._read_tsv('note')
+    @annotation.setter
+    def annotation(self, value: str):  self._write_tsv(note=value)
 
 
 @cache
@@ -108,7 +118,7 @@ def all_students() -> dict[str, Student]:
                 names[email] = f"{row['Cognome']} {row['Nome']}".strip()
 
     # ── verbali ───────────────────────────────────────────────────────────────
-    results: dict[str, dict[str, str]] = {}
+    results: dict[str, dict[str, Mark]] = {}
 
     for xls in sorted((config.HISTORY_DIR / 'verbali').glob('*.xls')):
         df    = pd.read_excel(xls, header=0)
@@ -118,23 +128,24 @@ def all_students() -> dict[str, Student]:
             email = mat2email.get(mat)
             if not email:
                 continue
-            mark = Mark.from_verbale(str(row['Voto']), str(row['Stato Esito']))
+            try:
+                mark = Mark.from_verbale(str(row['Voto']), str(row['Stato Esito']))
+            except ValueError:
+                continue
             results.setdefault(email, {})[row['Data appello'].strftime('%y%m%d')] = mark
             if email not in names:
                 names[email] = str(row['Nominativo studente']).strip()
 
-    # ── past notes (current-exam long notes are read live) ────────────────────
+    # ── notes (all dates — current-date long notes are still read live) ───────
     notes: dict[str, dict[str, str]] = {}
     for note_file in config.EVALS_DIR.glob('*/notes/*.md'):
         date  = note_file.parent.parent.name
         email = note_file.stem
-        if date == current_date:
-            continue
         notes.setdefault(email, {})[date] = note_file.read_text()
 
-    # ── current marks.tsv → determines who has source ─────────────────────────
+    # ── current marks.tsv ─────────────────────────────────────────────────────
     current_rows: dict[str, dict] = {}
-    marks_path = config.EVALS_DIR / exam_date() / 'marks.tsv'
+    marks_path = config.EVALS_DIR / current_date / 'marks.tsv'
     if marks_path.exists():
         df = pd.read_csv(marks_path, sep='\t', na_filter=False)
         for _, row in df.iterrows():
@@ -145,32 +156,30 @@ def all_students() -> dict[str, Student]:
     students: dict[str, Student] = {}
 
     for email in all_emails:
-        past_dates = (
-            (enrollments.get(email, set()) | set(results.get(email, {}).keys()) | set(notes.get(email, {}).keys()))
-            - {current_date}
+        all_dates = (
+            enrollments.get(email, set())
+            | set(results.get(email, {}).keys())
+            | set(notes.get(email, {}).keys())
         )
-        events = [
-            ExamEvent(
-                date=date,
-                mark=results.get(email, {}).get(date, Mark(kind='assente')),
-                note=notes.get(email, {}).get(date),
-            )
-            for date in sorted(past_dates, reverse=True)
-        ]
 
-        current = None
-        if current_date in enrollments.get(email, set()):
-            if email in current_rows:
-                current = LiveCurrentExamEvent(email, current_date, current_rows[email])
+        events = []
+        for date in sorted(all_dates, reverse=True):
+            if date in results.get(email, {}):
+                events.append(ExamEvent(
+                    date=date,
+                    mark=dataclasses.replace(results[email][date],
+                                            note=notes.get(email, {}).get(date)),
+                ))
+            elif date == current_date and email in current_rows:
+                events.append(UnderEvaluationEvent(email, date, current_rows[email]))
             else:
-                current = AbsentCurrentExamEvent(current_date)
+                events.append(ExamEvent(date=date, mark=None))
 
         students[email] = Student(
             email=email,
             matricola=email2mat.get(email, ''),
             name=names.get(email, ''),
             events=events,
-            current=current,
         )
 
     return students

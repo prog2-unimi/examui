@@ -34,11 +34,11 @@ def create_app():
         return redirect(url_for('history.list_students'))
 
     from pathlib import Path
-    from examui.models.store import all_students, LiveCurrentExamEvent
+    from examui.models.store import all_students, UnderEvaluationEvent
     from examui.models import source
     Path(app.static_folder, 'pygments.css').write_text(source.pygments_css())
     students    = all_students()
-    with_source = sorted(e for e, s in students.items() if isinstance(s.current, LiveCurrentExamEvent))
+    with_source = sorted(e for e, s in students.items() if s.events and isinstance(s.events[0], UnderEvaluationEvent))
     _log.info('[warmup] %d students with source', len(with_source))
     for email in with_source:
         source.warmup(email)

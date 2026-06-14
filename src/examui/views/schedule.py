@@ -5,7 +5,7 @@ import dataclasses
 from datetime import datetime
 
 from flask import Blueprint, render_template
-from examui.models.store import all_students, LiveCurrentExamEvent
+from examui.models.store import all_students, UnderEvaluationEvent
 
 bp = Blueprint('schedule', __name__, url_prefix='')
 
@@ -17,17 +17,19 @@ def schedule():
 
     rows = []
     for s in sorted(
-        (s for s in students.values() if isinstance(s.current, LiveCurrentExamEvent)),
-        key=lambda s: (s.current.metrics.slot or datetime.max, s.name),
+        (s for s in students.values()
+         if s.events and isinstance(s.events[0], UnderEvaluationEvent)),
+        key=lambda s: (s.events[0].metrics.slot or datetime.max, s.name),
     ):
-        sm = s.summary_mark
+        live = s.events[0]
+        sm   = s.summary_mark
         rows.append({
             'email':        s.email,
             'name':         s.name,
             'matricola':    s.matricola,
             'summary_mark': dataclasses.asdict(sm) if sm else None,
-            'current_mark': s.current.mark,
-            **dataclasses.asdict(s.current.metrics),
+            'current_mark': live.mark.provisional,
+            **dataclasses.asdict(live.metrics),
         })
 
     return render_template('schedule.html',

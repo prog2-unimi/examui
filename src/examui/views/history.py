@@ -4,7 +4,8 @@
 import dataclasses
 
 from flask import Blueprint, render_template
-from examui.models.store import all_students, exam_date
+from examui.models.events import ExamEvent
+from examui.models.store import all_students, exam_date, UnderEvaluationEvent
 
 bp = Blueprint('history', __name__, url_prefix='')
 
@@ -19,11 +20,10 @@ def list_students():
 
     for s in sorted(students.values(), key=lambda s: s.name):
         event_dates = sorted({e.date for e in s.events}, reverse=True)
-        all_dates.update(event_dates)
+        all_dates.update(d for d in event_dates if d != current_date)
 
-        in_current = s.current is not None
+        in_current = bool(s.events) and isinstance(s.events[0], UnderEvaluationEvent)
         sm         = s.summary_mark
-        dates      = event_dates + ([current_date] if in_current else [])
 
         summary.append({
             'email':         s.email,
@@ -34,7 +34,7 @@ def list_students():
             'last':          s.last,
             'first_attempt': s.first_attempt,
             'in_current':    in_current,
-            'dates':         dates,
+            'dates':         event_dates,
             'summary_mark':  dataclasses.asdict(sm) if sm else None,
         })
 
