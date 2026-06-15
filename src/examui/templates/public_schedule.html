@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ course_name }} — Prenotazioni orale</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f8f9fa; }
+    .matricola { font-family: monospace; font-weight: 600; letter-spacing: .03em; }
+    .slot-cell { white-space: nowrap; }
+  </style>
+</head>
+<body>
+<div class="container py-4" style="max-width: 800px;">
+
+  <h4 class="mb-3">
+    {{ course_name }}
+    <span class="text-muted fw-normal fs-6">— Appello del {{ exam_date }}</span>
+  </h4>
+
+  <div class="alert alert-warning mb-3">
+    <p class="mb-1">Gli studenti elencati (in ordine di matricola) nella seguente tabella sono <strong>ammessi all'orale</strong>.</p>
+    <ul class="mb-0">
+      <li>Se <em>non hai ancora prenotato</em>, usa il link nella tua riga: ti condurrà all'applicazione per prenotare il tuo orale, compilando automaticamente nome, matricola e indirizzo email. <strong>Attenzione:</strong> chi non prenota entro la data dell'orale verrà considerato <strong>ritirato</strong>.</li>
+      <li>Se <em>hai prenotato</em> prima del {{ generated_at }}, troverai il tuo slot nella tabella (che è stata generata in tale momento).</li>
+      <li>Prima di recarti all'orale <em>ricordati di leggere</em> il <a href="https://prog2unimi-temi-svolti.netlify.app/intro/vademecum" target="_blank" rel="noopener">vademecum</a>.</li>
+    </ul>
+  </div>
+
+  <table class="table table-sm table-bordered table-hover bg-white">
+    <thead class="table-light">
+      <tr>
+        <th>Matricola</th>
+        <th>Slot</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td class="matricola align-middle">{{ row.matricola }}</td>
+        <td class="slot-cell align-middle">{{ row.slot or '—' }}</td>
+        <td class="align-middle">
+          {% if row.slot %}
+          <span class="badge bg-success">Prenotato</span>
+          {% elif row.cal_url %}
+          <a href="{{ row.cal_url }}" target="_blank" rel="noopener"
+             class="btn btn-sm btn-outline-primary">Prenota →</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="d-flex gap-3 small text-muted">
+    <span>Ammessi: <strong class="text-dark">{{ total }}</strong></span>
+    <span>Prenotati: <strong class="text-success">{{ booked }}</strong></span>
+    <span>Da prenotare: <strong class="text-danger">{{ total - booked }}</strong></span>
+  </div>
+
+</div>
+</body>
+</html>

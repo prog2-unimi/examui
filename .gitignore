@@ -8,3 +8,5 @@ __pycache__/
 *.pyo
 config.toml
 dist/
+# Local Netlify folder
+.netlify

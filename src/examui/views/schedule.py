@@ -3,6 +3,7 @@
 
 import dataclasses
 from datetime import datetime, timedelta
+from urllib.parse import urlencode
 
 from flask import Blueprint, jsonify, render_template
 from examui import config
@@ -55,6 +56,49 @@ def schedule():
     subject_prefix=config.SUBJECT_PREFIX,
     titoli=config.TITOLI,
     slot_minutes=config.SLOT_MINUTES,
+  )
+
+
+_GIORNI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
+_MESI   = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+           'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+
+
+def _fmt_slot(slot: datetime) -> str:
+  return f'{_GIORNI[slot.weekday()]} {slot.day} {_MESI[slot.month - 1]}, {slot.strftime("%H:%M")}'
+
+
+@bp.get('/api/schedule/public')
+def public_schedule():
+  now      = datetime.now()
+  exam_dt  = datetime.strptime(config.TODAY, '%y%m%d')
+  exam_fmt = f'{exam_dt.day} {_MESI[exam_dt.month - 1]} {exam_dt.year}'
+
+  rows = []
+  for s in sorted(
+    (s for s in all_students().values() if s.events and isinstance(s.events[0], UnderEvaluationEvent)),
+    key=lambda s: s.matricola,
+  ):
+    slot = s.events[0].metrics.slot
+    cal_url = None
+    if config.CAL_URL:
+      cal_url = config.CAL_URL + '?' + urlencode({
+        'name':      s.name,
+        'email':     f'{s.email}@{config.EMAIL_DOMAIN}',
+        'matricola': s.matricola,
+      })
+    rows.append({'matricola': s.matricola, 'slot': _fmt_slot(slot) if slot else None, 'cal_url': cal_url})
+
+  booked = sum(1 for r in rows if r['slot'])
+  return render_template(
+    'public_schedule.html',
+    rows=rows,
+    course_name=config.COURSE_NAME,
+    exam_date=exam_fmt,
+    cal_url=config.CAL_URL,
+    total=len(rows),
+    booked=booked,
+    generated_at=f"{now.strftime('%d/%m/%Y')} alle ore {now.strftime('%H:%M')}",
   )
 
 

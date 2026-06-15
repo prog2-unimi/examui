@@ -23,6 +23,9 @@ course_degree    = "Informatica"           # optional, for giustifica
 [vscode]
 tunnel = "santinivm"          # optional; enables the "Open in VSCode" button in the Source tab
 
+[booking]
+cal_url = "https://cal.com/username/event-name"   # optional; enables the public schedule page
+
 [actions]
 teacher_email  = "teacher@example.com"
 teacher_name   = "Name Surname"
@@ -35,10 +38,10 @@ titoli         = ["lo studente", "la studentessa", "il dottore", "la dottoressa"
 
 Two env vars are intentionally kept outside the TOML because they are ephemeral simulation overrides:
 
-| Variable | Format   | Effect |
-|----------|----------|--------|
+| Variable | Format   | Effect                                               |
+|----------|----------|------------------------------------------------------|
 | `TODAY`  | `YYMMDD` | Overrides the date used to select the active exam session |
-| `NOW`    | `HHMM`   | Overrides the current time used by `/api/pace` |
+| `NOW`    | `HHMM`   | Overrides the current time used by `/api/pace`       |
 
 ## Running
 
@@ -78,6 +81,10 @@ It sources `.envrc` from the project root, starts gunicorn on `127.0.0.1:8765`, 
 It opens the tunnel, waits for the port to be reachable, launches the browser via `termux-open-url`, and tears down the tunnel on Ctrl-C.
 
 Single-worker gunicorn is a hard requirement (in-process `@cache`).
+
+### `bin/publish` — deploy the public schedule page
+
+Fetches `GET /api/schedule/public` from the running local app, writes a `netlify.toml` (to suppress any build command), and deploys to the Netlify site via `netlify deploy --prod`. Reads `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` from `.envrc`. Requires `netlify-cli` installed on the server (`npm install -g netlify-cli`). The target site is `prog2unimi-esame.netlify.app`.
 
 ### `bin/giustifica` — CLI certificate generator
 
@@ -149,6 +156,10 @@ Student's submitted Java project. Layout:
 ### `STUDENT_BASE/<email>/javadoc/`
 
 Pre-built Javadoc HTML tree, served as static files by the `/api/<email>/javadoc/` route.
+
+### `STUDENT_BASE/<email>/computed/`
+
+Optional directory of plain-text files produced during automated grading. Served read-only by the Details tab in `student.html` via `GET /api/<email>/computed/files` (file list) and `GET /api/<email>/computed/file?name=<filename>` (content). Not cached — files are small and read on demand.
 
 ---
 
@@ -329,18 +340,22 @@ All students enrolled at least once (past or current exam). Only `summary_mark` 
 
 Each entry in `students` includes: `email`, `name`, `matricola`, `attempts`, `first`, `last`, `first_attempt`, `in_current` (bool), `dates` (list), `summary_mark` (`dataclasses.asdict(Mark)` or `None`).
 
-### `views/schedule.py` — `GET /schedule` and `GET /api/pace`
+### `views/schedule.py` — `GET /schedule`, `GET /api/pace`, `GET /api/schedule/public`
 
-All `UnderEvaluationEvent` students for the current exam. Includes full `Metrics` fields (via `dataclasses.asdict`) plus `summary_mark` and `current_mark` (from `live.mark.provisional`). Sorted by `slot`. Each row also carries `is_current` and `is_next` booleans — `True` for the first and second unmarked students (non-empty `current_mark`) with a booked slot, used by `schedule.js` to render caret icons. Passes `rows`, `today` (ISO date string), and the `[actions]` config values (`email_domain`, `teacher_email`, `teacher_name`, `subject_prefix`, `titoli`, `slot_minutes`) to `schedule.html`.
+All `UnderEvaluationEvent` students for the current exam. Includes full `Metrics` fields (via `dataclasses.asdict`) plus `summary_mark`, `current_mark` (from `live.mark.provisional`), and `matricola`. Sorted by `slot`. Each row also carries `is_current` and `is_next` booleans — `True` for the first and second unmarked students (non-empty `current_mark`) with a booked slot, used by `schedule.js` to render caret icons. Also computes `slot_dates` (sorted list of distinct `YYYY-MM-DD` strings from booked slots). Passes `rows`, `today` (ISO date string), `slot_dates`, and the `[actions]` config values to `schedule.html`.
 
 `GET /api/pace` — returns schedule pace as JSON. Reads `provisional` live (not cached) for all slotted students. Response: `{has_slots, delta, done, expected, total}`. `delta = (done - expected) × SLOT_MINUTES` in minutes; positive = ahead, negative = behind. Uses `config.now()` so `NOW` env override applies.
 
+`GET /api/schedule/public` — renders `public_schedule.html`, a standalone page for students. Lists all `UnderEvaluationEvent` students sorted by matricola, showing their booked slot (formatted in Italian) and a pre-filled cal.com booking link (`config.CAL_URL?name=…&email=…&matricola=…`) for those without a slot. Bakes in the generation timestamp. Requires `[booking] cal_url` in config; booking links are omitted if absent.
+
 ### `views/student.py` — per-student routes
 
-- `GET /student/<email>` — renders `student.html`. Passes `email`, `name`, `matricola`, `events` (only `ExamEvent` instances — `UnderEvaluationEvent` is excluded), `current` (`UnderEvaluationEvent | None`), `slot_minutes`.
+- `GET /student/<email>` — renders `student.html`. Passes `email`, `name`, `matricola`, `events` (only `ExamEvent` instances — `UnderEvaluationEvent` is excluded), `current` (`UnderEvaluationEvent | None`), `slot_minutes`, `vscode_url` (`https://vscode.dev/tunnel/<tunnel><STUDENT_BASE>/<email>/source` when `[vscode] tunnel` is set and student is in current exam, else `None`).
 - `POST /api/<email>/note` — saves `note` (long-form, to `.md` file). Form field: `note`.
 - `POST /api/<email>/mark` — saves both `mark` and `annotation` to marks.tsv via `live.mark.save()`. Form fields: `mark`, `annotation`.
 - `GET /student/<email>/giustifica` — renders a standalone `giustifica.html` certificate page ready for browser print-to-PDF. Query params: `titolo` (required), `inizio` and `fine` (`HH:MM`, optional — default to slot start and slot start + `SLOT_MINUTES`). The `<email>` segment accepts a partial match: if it uniquely identifies one current-exam student the request proceeds; if ambiguous, returns `{"error": "ambiguous", "matches": [...]}` with HTTP 400.
+- `GET /api/<email>/computed/files` — returns sorted JSON list of filenames in `STUDENT_BASE/<email>/computed/`; empty list if directory absent. Only available for current-exam students.
+- `GET /api/<email>/computed/file?name=<filename>` — returns raw text content of one computed file; path-traversal guarded. Only available for current-exam students.
 - Source/Javadoc routes delegate to `source.*` functions.
 
 ---
@@ -361,7 +376,7 @@ DataTables. `CFG = {students: [...]}`. Filters: date dropdown, kind dropdown (Al
 
 ### `schedule.html`
 
-DataTables. `CFG = {rows, today, emailDomain, teacherEmail, teacherName, subjectPrefix, slotMinutes, titoli}`. Columns: checkbox, slot, name, mark, tests, javadoc, cyclic, SLOC, docs, files, client SLOC, client files. "Today only" and "New only" checkbox filters. Links to `/student/<email>`. Active-timer button handled by `common.js`.
+DataTables. `CFG = {rows, emailDomain, teacherEmail, teacherName, subjectPrefix, slotMinutes, titoli}`. Columns: checkbox, slot, name, matricola, mark, tests, javadoc, cyclic, SLOC, docs, files, client SLOC, client files. Date filter dropdown (populated from `slot_dates`; `▶` prefix on today's date; sentinel value `__unbooked__` for students with no slot) and "New only" checkbox filter. Links to `/student/<email>`. Active-timer button handled by `common.js`.
 
 **Actions dropdown** — enabled when ≥ 1 row is checked:
 
@@ -369,6 +384,15 @@ DataTables. `CFG = {rows, today, emailDomain, teacherEmail, teacherName, subject
 - **Giustifica** — enabled only when exactly 1 student with a booked slot is checked. Opens a modal to select `titolo` (from `CFG.titoli`) and review/edit `inizio`/`fine` times (pre-filled from the slot; a "Round to hour" button floors inizio and ceils fine). Confirming opens `/student/<email>/giustifica?...` in a new tab.
 
 `syncCheckboxes()` is the single function responsible for updating all checkbox states and enabling/disabling the dropdown and its items; it is called from both `drawCallback` and every individual checkbox/select-all interaction.
+
+### `public_schedule.html`
+
+Standalone (does not extend `base.html`). Bootstrap 5 CDN. Italian language. Intended for students — shows only matricola and slot, no names or marks. Sorted by matricola. Contains:
+
+- Header: course name + "Appello del \<date\>" inline in lighter font.
+- Yellow warning box (`alert-warning`) with three bullet points: booking instructions (with prefill note), slot-table currency notice (with generation timestamp), vademecum link.
+- Counts row (Ammessi / Prenotati / Da prenotare) — placed *below* the table (teacher-facing info).
+- Table: Matricola | Slot | action (green "Prenotato" badge or "Prenota →" button linking to prefilled cal.com URL).
 
 ### `giustifica.html`
 
@@ -384,7 +408,11 @@ Key pattern at top:
 
 Single read of marks.tsv, reused for all conditional logic.
 
-Tab visibility: History tab always visible (shows only `ExamEvent` instances — `UnderEvaluationEvent` is not listed there). Note/Source/Deps/Javadoc tabs enabled when `current` is truthy (i.e. student is `UnderEvaluationEvent`), regardless of provisional mark value.
+Tab visibility: History tab always visible (shows only `ExamEvent` instances — `UnderEvaluationEvent` is not listed there). Note/Source/Deps/Javadoc/Details tabs enabled when `current` is truthy (i.e. student is `UnderEvaluationEvent`), regardless of provisional mark value.
+
+Source tab toolbar contains an "Open in VSCode" button (`bi-code-square`) when `vscode_url` is set and `current` is truthy — opens `https://vscode.dev/tunnel/<name><source-root>` in a new tab (workspace only; no file-open via URL).
+
+Details tab: `<select id="details-select">` dropdown populated lazily on first tab open from `/api/<email>/computed/files`; selecting a filename fetches and displays its content in `<pre id="details-content">`.
 
 Notes tab layout (top to bottom):
 
@@ -417,7 +445,7 @@ DataTables for history list. Uses `renderMark(row.summary_mark, row.in_current ?
 
 ### `static/schedule.js`
 
-DataTables for schedule. Uses `renderMark(row.summary_mark, row.current_mark)`. `iconFail(val)` / `iconCycles(val)` — Bootstrap Icons for tests/javadoc/cycles. "Today only" filter: `row.slot && row.slot.startsWith(CFG.today)`. "New only" filter: `row.summary_mark === null`. Active-timer button from `common.js`.
+DataTables for schedule. Uses `renderMark(row.summary_mark, row.current_mark)`. `iconFail(val)` / `iconCycles(val)` — Bootstrap Icons for tests/javadoc/cycles. Date filter: `#date-filter` select; value `__unbooked__` matches `row.slot === null`, any other non-empty value matches `row.slot.startsWith(date)`. "New only" filter: `row.summary_mark === null`. Active-timer button from `common.js`.
 
 `createdRow` adds `table-warning` for the active-timer student. The name cell render prepends `bi-caret-right-fill text-primary` for `is_current` and `bi-caret-right text-secondary` for `is_next`; active-timer highlight takes priority over the caret icons.
 
@@ -430,6 +458,7 @@ DataTables for schedule. Uses `renderMark(row.summary_mark, row.current_mark)`. 
 - **Mark save**: `POST /api/<email>/mark` with `mark` + `annotation` fields together (blur/Enter on either input triggers save).
 - **Source tree, symbol search, file viewer, deps graph, Javadoc**: fetch from `/api/<email>/source/*` and `/api/<email>/javadoc/`. Source tree loaded lazily on first Source tab open. Panzoom (CDN) used for the deps SVG; double-click resets zoom.
 - **Font size**: `localStorage['oral-src-font-size']` key; select `#src-fontsize`.
+- **Details tab**: file list fetched lazily on first `shown.bs.tab` from `/api/<email>/computed/files`; content fetched on `#details-select` change from `/api/<email>/computed/file?name=…`.
 
 ---
 

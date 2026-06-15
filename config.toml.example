@@ -12,6 +12,9 @@ course_degree    = "Informatica"
 [vscode]
 tunnel = "tunnelname"
 
+[booking]
+cal_url = "https://cal.com/username/event-name"
+
 [actions]
 teacher_email  = "teacher@example.com"
 teacher_name   = "Name Surname"

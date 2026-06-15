@@ -7,8 +7,11 @@ Given a student's submitted source code and generated Javadoc, it provides:
 
 - a searchable history of all past exam events per student;
 - a per-session oral page with a note editor, syntax-highlighted source navigator
-  (with symbol search and Javadoc deep-links), and a dependency graph of the
-  student's classes (topologically ordered, transitively reduced).
+  (with symbol search and Javadoc deep-links), dependency graph, Javadoc viewer,
+  and a Details tab for computed auxiliary files;
+- a schedule view with slot assignments, pace tracking, and actions (BCC email, giustifica);
+- a public-facing booking page (deployed to Netlify) listing admitted students with
+  pre-filled cal.com booking links.
 
 > **Note:** This is preliminary software, developed for personal use during exam
 > sessions. Interfaces and data formats may change without notice.
@@ -26,22 +29,30 @@ student_base = "/path/to/exams/students"
 [exam]
 slot_minutes     = 30
 trivial_packages = ["client", "clients", "util", "utils"]
+course_name      = "Programmazione II"
+course_degree    = "Informatica"       # optional, for giustifica
 
 [vscode]
-tunnel = "santinivm"
+tunnel = "santinivm"                   # optional; enables "Open in VSCode" button
 
-[teacher]
-email = "teacher@example.com"
-name  = "Name Surname"
+[booking]
+cal_url = "https://cal.com/user/event" # optional; enables public schedule page
 
-[students]
-email_domain = "students.university.edu"
+[actions]
+teacher_email  = "teacher@example.com"
+teacher_name   = "Name Surname"
+subject_prefix = "[CourseCode] "
+email_domain   = "students.university.edu"
+titoli         = ["lo studente", "la studentessa", "il dottore", "la dottoressa"]
 ```
 
-Then copy `.envrc.example` to `.envrc` and point `EXAMUI_CONFIG` at your file:
+Then copy `.envrc.example` to `.envrc` and set at minimum:
 
 ```shell
 export EXAMUI_CONFIG="$(pwd)/config.toml"
+# Required for bin/publish (Netlify deployment):
+export NETLIFY_AUTH_TOKEN=<personal-access-token>
+export NETLIFY_SITE_ID=<site-id>
 ```
 
 Two additional env vars are available for development time simulation (not in the TOML):
@@ -85,6 +96,20 @@ Then on the tablet:
 
 This opens the SSH tunnel, waits for gunicorn to be reachable, launches the
 browser, and tears everything down on Ctrl-C.
+
+### `bin/publish` — deploy the public schedule page
+
+Fetches the generated public schedule page from the running app and deploys it
+to the Netlify site configured via `NETLIFY_SITE_ID` and `NETLIFY_AUTH_TOKEN`
+in `.envrc`. Requires the Netlify CLI (`npm install -g netlify-cli`).
+
+```bash
+./bin/publish
+```
+
+The page is served at `https://<site-name>.netlify.app`. It lists all admitted
+students with their booked slot (sorted by matricola) and pre-filled cal.com
+booking links for those who haven't booked yet.
 
 ## License
 
